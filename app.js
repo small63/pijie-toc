@@ -159,7 +159,7 @@ function renderProducts() {
         const cardTop = `
         <div class="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col group">
             <div class="relative aspect-square bg-slate-100 overflow-hidden">
-                <img src="${product.image}" alt="${product.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                <img src="${product.image}" alt="${product.name}" onclick="openLightbox('${product.image}', '${product.name.replace(/'/g, "\\'")}')" class="w-full h-full object-cover cursor-zoom-in group-hover:scale-105 transition-transform duration-500">
                 <span class="absolute top-3 left-3 px-2.5 py-1 rounded-md text-xs font-bold shadow-sm ${getStatusBadgeClass(product.status)}">${product.status}</span>
                 ${imgOverlay}
             </div>
@@ -271,6 +271,12 @@ window.fillInquiry = (name) => {
 };
 
 window.submitInquiry = (e) => { e.preventDefault(); alert('詢價單已送出！PiJie TCG 業務將盡快聯繫您。'); e.target.reset(); inquiryList = []; document.getElementById('floatingCartBtn').classList.add('hidden'); };
+window.openLightbox = (src, title) => {
+    document.getElementById('lightboxImg').src = src;
+    document.getElementById('lightboxTitle').textContent = title;
+    document.getElementById('imageLightbox').classList.remove('hidden');
+};
+window.closeLightbox = () => document.getElementById('imageLightbox').classList.add('hidden');
 
 
 
