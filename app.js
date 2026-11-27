@@ -68,17 +68,36 @@ window.submitLogin = async (e) => {
 function renderBanners() {
     const container = document.getElementById('bannerContainer');
     const dots = document.getElementById('bannerDots');
-    const list = banners.length > 0 ? banners : [{ tag: "PiJie Toc 2026", title: "寶可夢卡牌原箱與單卡批發", desc: "日版、繁中版、美版即時報價，歡迎商家洽詢。", image: "" }];
-    if (currentBannerIdx >= list.length) currentBannerIdx = 0;
-    const item = list[currentBannerIdx];
-    const bgHtml = item.image
-        ? `<img src="${item.image}" class="absolute inset-0 w-full h-full object-cover opacity-35 transition-all duration-700">`
-        : `<div class="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-amber-950/40"></div><img src="logo.png" class="absolute right-8 md:right-20 top-1/2 -translate-y-1/2 w-36 h-36 md:w-52 md:h-52 object-contain opacity-15 pointer-events-none">`;
-    container.innerHTML = `${bgHtml}<div class="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-900/70 to-transparent"></div><div class="relative max-w-7xl mx-auto px-6 h-full flex flex-col justify-center"><span class="inline-block w-fit bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-bold px-3 py-1 rounded-full mb-3">${item.tag}</span><h2 class="text-2xl md:text-4xl font-extrabold mb-3 max-w-2xl">${item.title}</h2><p class="text-slate-300 text-sm md:text-base max-w-xl">${item.desc}</p></div>`;
-    dots.innerHTML = list.map((_, i) => `<button onclick="goBanner(${i})" class="w-2.5 h-2.5 rounded-full transition ${i === currentBannerIdx ? 'bg-amber-400 w-6' : 'bg-white/40'}"></button>`).join('');
+    const fallback = { tag: "PiJie Toc 2026", title: "寶可夢卡牌原箱與單卡批發", desc: "日版、繁中版、美版即時報價", image: "logo.png" };
+    const list = banners.length > 0 ? banners : [fallback];
+    const len = list.length;
+    if (currentBannerIdx >= len) currentBannerIdx = 0;
+
+    const prevIdx = (currentBannerIdx - 1 + len) % len;
+    const nextIdx = (currentBannerIdx + 1) % len;
+
+    const buildCard = (item, role, clickFn) => `
+        <div ${clickFn ? `onclick="${clickFn}"` : ''} class="carousel-card ${role} bg-slate-900">
+            <img src="${item.image}" alt="${item.title}">
+            <div class="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/30 to-transparent"></div>
+            <div class="absolute bottom-5 left-6 right-6 text-white">
+                <span class="inline-block bg-amber-500 text-slate-950 text-[11px] font-extrabold px-2.5 py-0.5 rounded mb-1.5">${item.tag}</span>
+                <h2 class="text-lg md:text-2xl font-extrabold leading-snug">${item.title}</h2>
+                <p class="text-slate-300 text-xs md:text-sm line-clamp-1 mt-0.5">${item.desc}</p>
+            </div>
+        </div>`;
+
+    container.innerHTML = `<div class="carousel-track">
+        ${len > 1 ? buildCard(list[prevIdx], 'side', 'prevBanner()') : ''}
+        ${buildCard(list[currentBannerIdx], 'center', '')}
+        ${len > 1 ? buildCard(list[nextIdx], 'side', 'nextBanner()') : ''}
+    </div>`;
+
+    dots.innerHTML = list.map((_, i) => `<button onclick="goBanner(${i})" class="h-2 rounded-full transition ${i === currentBannerIdx ? 'bg-amber-400 w-6' : 'bg-white/60 w-2'}"></button>`).join('');
     clearInterval(bannerTimer);
-    if (list.length > 1) bannerTimer = setInterval(() => window.nextBanner(), 5000);
+    if (len > 1) bannerTimer = setInterval(() => window.nextBanner(), 5000);
 }
+
 
 window.nextBanner = () => { const len = banners.length || 1; currentBannerIdx = (currentBannerIdx + 1) % len; renderBanners(); };
 window.prevBanner = () => { const len = banners.length || 1; currentBannerIdx = (currentBannerIdx - 1 + len) % len; renderBanners(); };
