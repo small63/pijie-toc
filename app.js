@@ -26,6 +26,8 @@ let currentCategory = 'All';
 let isAdmin = false;
 let currentCurrency = { code: 'TWD', rate: 1, symbol: 'NT$' };
 let inquiryList = [];
+let currentPage = 1;
+const itemsPerPage = 12;
 onAuthStateChanged(auth, (user) => {
     isAdmin = !!user;
     const panel = document.getElementById('adminPanel');
@@ -107,8 +109,8 @@ window.changeCurrency = () => {
     renderProducts();
 };
 
-window.handleFilterChange = () => renderProducts();
-window.selectCategory = (cat) => { currentCategory = cat; renderCategories(); renderProducts(); };
+window.handleFilterChange = () => { currentPage = 1; renderProducts(); };
+window.selectCategory = (cat) => { currentCategory = cat; currentPage = 1; renderCategories(); renderProducts(); };
 
 function renderCategories() {
     const cats = ['All', ...new Set(products.map(p => p.category))];
@@ -126,6 +128,7 @@ function getStatusBadgeClass(s) {
 }
 function renderProducts() {
     const grid = document.getElementById('productGrid');
+    const pageBar = document.getElementById('paginationBar');
     const keyword = (document.getElementById('searchInput')?.value || '').toLowerCase().trim();
     const statusFilter = document.getElementById('statusFilter')?.value || 'All';
 
@@ -137,10 +140,16 @@ function renderProducts() {
 
     if (filtered.length === 0) {
         grid.innerHTML = `<div class="col-span-full text-center py-16 bg-white rounded-xl border border-slate-200 text-slate-400">目前尚無符合條件的卡牌商品。</div>`;
+        if (pageBar) pageBar.innerHTML = '';
         return;
     }
 
-    grid.innerHTML = filtered.map(product => {
+    const totalPages = Math.ceil(filtered.length / itemsPerPage);
+    if (currentPage > totalPages) currentPage = totalPages;
+    const start = (currentPage - 1) * itemsPerPage;
+    const pageItems = filtered.slice(start, start + itemsPerPage);
+
+    grid.innerHTML = pageItems.map(product => {
         const price = (product.priceTWD * currentCurrency.rate).toLocaleString(undefined, {
             minimumFractionDigits: currentCurrency.code === 'USD' ? 2 : 0,
             maximumFractionDigits: currentCurrency.code === 'USD' ? 2 : 0
@@ -149,7 +158,6 @@ function renderProducts() {
         const titleHtml = isAdmin ? `<input type="text" value="${product.name}" onchange="updateField('${product.id}', 'name', this.value)" class="w-full font-bold text-slate-800 border-b border-amber-400 focus:outline-none mb-2 bg-amber-50/60 px-1 py-0.5 rounded">` : `<h3 class="font-bold text-slate-800 text-base mb-2 line-clamp-2 group-hover:text-amber-600 transition-colors">${product.name}</h3>`;
         const cardTop = `
         <div class="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col group">
-
             <div class="relative aspect-square bg-slate-100 overflow-hidden">
                 <img src="${product.image}" alt="${product.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
                 <span class="absolute top-3 left-3 px-2.5 py-1 rounded-md text-xs font-bold shadow-sm ${getStatusBadgeClass(product.status)}">${product.status}</span>
@@ -169,10 +177,21 @@ function renderProducts() {
         const clientControls = `
             <div class="flex items-baseline justify-between mb-3.5"><span class="text-xs text-slate-400">批發單價</span><span class="text-xl font-extrabold text-slate-900">${currentCurrency.symbol} ${price}</span></div>
             <button onclick="fillInquiry('${product.name}')" class="w-full bg-slate-900 hover:bg-amber-500 hover:text-slate-950 text-white text-xs font-bold py-2.5 rounded-lg transition shadow-sm">+ 加入詢價清單</button>`;
-
         return `${cardTop}<div class="mt-4 pt-3.5 border-t border-slate-100">${isAdmin ? adminControls : clientControls}</div></div></div>`;
     }).join('');
+
+    if (pageBar) {
+        if (totalPages <= 1) { pageBar.innerHTML = ''; return; }
+        let btns = `<button class="page-btn" ${currentPage === 1 ? 'disabled' : ''} onclick="goPage(${currentPage - 1})">‹ 上一頁</button>`;
+        for (let i = 1; i <= totalPages; i++) {
+            btns += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goPage(${i})">${i}</button>`;
+        }
+        btns += `<button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="goPage(${currentPage + 1})">下一頁 ›</button>`;
+        pageBar.innerHTML = btns;
+    }
 }
+
+window.goPage = (p) => { currentPage = p; renderProducts(); document.getElementById('catalogSection').scrollIntoView({ behavior: 'smooth' }); };
 function compressImage(file, maxSize = 400) {
     return new Promise((resolve) => {
         const reader = new FileReader();
