@@ -83,20 +83,21 @@
                     <option value="鑑定卡">鑑定卡</option>
                     <option value="週邊配件">週邊配件</option>
                 </select>
-                <input type="number" id="newPrice" placeholder="單價 (TWD)" required class="border rounded-lg px-3 py-2 text-sm">
-                <input type="number" id="newStock" placeholder="庫存數量 (例: 10)" min="0" required class="border rounded-lg px-3 py-2 text-sm">
-                <button type="submit" id="addBtn" class="bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg px-4 py-2 text-sm transition">+ 雲端上架</button>
-                <div class="md:col-span-6 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 pt-1">
-                    <div class="flex items-center gap-2">
-                        <label class="font-semibold text-slate-700">上傳商品實拍圖:</label>
-                        <input type="file" id="newImage" accept="image/*" class="text-xs">
-                    </div>
-                    <select id="newStatus" class="border rounded-lg px-2 py-1 text-xs">
-                        <option value="On Sale">現貨熱賣 (On Sale)</option>
-                        <option value="Pre-order">新品預購 (Pre-order)</option>
-                    </select>
+                <input type="number" id="newPrice" placeholder="價格 (TWD)" required class="border rounded-lg px-3 py-2 text-sm">
+                <input type="number" id="newStock" placeholder="庫存數量" min="0" value="10" required class="border rounded-lg px-3 py-2 text-sm">
+                <select id="newStatus" class="border rounded-lg px-3 py-2 text-sm">
+                    <option value="On Sale">On Sale (現貨熱賣)</option>
+                    <option value="Pre-order">Pre-order (新品預購)</option>
+                    <option value="Low Stock">Low Stock (少量現貨)</option>
+                    <option value="Sold Out">Sold Out (已售完)</option>
+                </select>
+                <div class="md:col-span-5 flex items-center gap-2 text-xs text-slate-500 pt-1">
+                    <label class="font-semibold text-slate-700">上傳商品實拍圖:</label>
+                    <input type="file" id="newImage" accept="image/*" class="text-xs">
                 </div>
+                <button type="submit" id="addBtn" class="bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg px-4 py-2 text-sm transition">+ 雲端上架</button>
             </form>
+
         </div>
         <div class="bg-blue-50 border-2 border-blue-400 rounded-xl p-6 shadow-sm">
             <h3 class="text-lg font-bold text-blue-900 mb-3">📢 最新消息 / 活動照片輪播管理</h3>
