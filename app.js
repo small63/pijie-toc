@@ -1,7 +1,7 @@
-const CDN = "https://" + "www.gstatic.com/firebasejs/13.4.0/";
+const CDN = "https://" + "://gstatic.com";
 const { initializeApp } = await import(CDN + "firebase-app.js");
 const { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } = await import(CDN + "firebase-auth.js");
-const { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, query, orderBy } = await import(CDN + "firebase-firestore.js");
+const { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, setDoc, serverTimestamp, query, orderBy } = await import(CDN + "firebase-firestore.js");
 
 const firebaseConfig = {
     apiKey: "AIzaSyBTahFQZxeCKbIdKTvicObukMRDkbGXTGk",
@@ -12,11 +12,13 @@ const firebaseConfig = {
     appId: "1:706390086062:web:37010cfce3f5ee52f7783f",
     measurementId: "G-LRP6EJFTFM"
 };
+
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const productsCol = collection(db, "products");
 const bannersCol = collection(db, "banners");
+const settingsDoc = doc(db, "settings", "payment");
 
 let products = [];
 let banners = [];
@@ -25,7 +27,8 @@ let bannerTimer = null;
 let currentCategory = 'All';
 let isAdmin = false;
 let currentCurrency = { code: 'TWD', rate: 1, symbol: 'NT$' };
-let inquiryList = [];
+let cart = [];
+let paymentConfig = { url: "", note: "確認商品數量與總金額後，點擊前往付款並填寫收件資訊。" };
 let currentPage = 1;
 const itemsPerPage = 12;
 onAuthStateChanged(auth, (user) => {
@@ -56,14 +59,28 @@ onSnapshot(query(bannersCol, orderBy("createdAt", "desc")), (snap) => {
     renderBanners();
     renderAdminBanners();
 });
+
+onSnapshot(settingsDoc, (snap) => {
+    if (snap.exists()) {
+        paymentConfig = snap.data();
+        const urlIn = document.getElementById('paymentLinkInput');
+        const noteIn = document.getElementById('paymentNoteInput');
+        if (urlIn) urlIn.value = paymentConfig.url || "";
+        if (noteIn) noteIn.value = paymentConfig.note || "";
+        const payBtn = document.getElementById('directPayBtn');
+        const payNote = document.getElementById('checkoutPayNote');
+        if (payBtn && paymentConfig.url) payBtn.href = paymentConfig.url;
+        if (payNote && paymentConfig.note) payNote.textContent = paymentConfig.note;
+    }
+});
+
 window.handleAuthClick = () => isAdmin ? signOut(auth) : document.getElementById('loginModal').classList.remove('hidden');
 window.closeLoginModal = () => document.getElementById('loginModal').classList.add('hidden');
 window.submitLogin = async (e) => {
     e.preventDefault();
     try {
         await signInWithEmailAndPassword(auth, document.getElementById('adminEmail').value, document.getElementById('adminPassword').value);
-        closeLoginModal();
-        e.target.reset();
+        closeLoginModal(); e.target.reset();
     } catch (err) { alert("登入失敗：" + err.message); }
 };
 function renderBanners() {
@@ -99,14 +116,16 @@ function renderBanners() {
     clearInterval(bannerTimer);
     if (len > 1) bannerTimer = setInterval(() => window.nextBanner(), 5000);
 }
+
 window.nextBanner = () => { const len = banners.length || 1; currentBannerIdx = (currentBannerIdx + 1) % len; renderBanners(); };
 window.prevBanner = () => { const len = banners.length || 1; currentBannerIdx = (currentBannerIdx - 1 + len) % len; renderBanners(); };
 window.goBanner = (i) => { currentBannerIdx = i; renderBanners(); };
+
 window.changeCurrency = () => {
     const sel = document.getElementById('currencySelector');
     const opt = sel.options[sel.selectedIndex];
     currentCurrency = { code: opt.value, rate: parseFloat(opt.dataset.rate), symbol: opt.dataset.symbol };
-    renderProducts();
+    renderProducts(); renderCart();
 };
 
 window.handleFilterChange = () => { currentPage = 1; renderProducts(); };
@@ -150,12 +169,15 @@ function renderProducts() {
     const pageItems = filtered.slice(start, start + itemsPerPage);
 
     grid.innerHTML = pageItems.map(product => {
+        const stock = product.stock ?? 0;
+        const isOut = stock <= 0 || product.status === 'Sold Out';
         const price = (product.priceTWD * currentCurrency.rate).toLocaleString(undefined, {
             minimumFractionDigits: currentCurrency.code === 'USD' ? 2 : 0,
             maximumFractionDigits: currentCurrency.code === 'USD' ? 2 : 0
         });
         const imgOverlay = isAdmin ? `<label class="absolute inset-0 bg-black/65 flex flex-col items-center justify-center text-white cursor-pointer opacity-90 hover:opacity-100 transition"><span class="text-sm font-bold mb-1">📷 更換照片</span><input type="file" accept="image/*" class="hidden" onchange="updateImage('${product.id}', event)"></label>` : '';
         const titleHtml = isAdmin ? `<input type="text" value="${product.name}" onchange="updateField('${product.id}', 'name', this.value)" class="w-full font-bold text-slate-800 border-b border-amber-400 focus:outline-none mb-2 bg-amber-50/60 px-1 py-0.5 rounded">` : `<h3 class="font-bold text-slate-800 text-base mb-2 line-clamp-2 group-hover:text-amber-600 transition-colors">${product.name}</h3>`;
+
         const cardTop = `
         <div class="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col group">
             <div class="relative aspect-square bg-slate-100 overflow-hidden">
@@ -165,18 +187,25 @@ function renderProducts() {
             </div>
             <div class="p-5 flex-1 flex flex-col justify-between">
                 <div>
-                    <div class="flex items-center justify-between text-[11px] font-medium text-slate-400 mb-1.5"><span>${product.category}</span><span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded">MOQ: 1 件起</span></div>
+                    <div class="flex items-center justify-between text-[11px] font-medium text-slate-400 mb-1.5">
+                        <span>${product.category}</span>
+                        <span class="px-2 py-0.5 rounded font-bold ${isOut ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'}">庫存: ${stock}</span>
+                    </div>
                     ${titleHtml}
                 </div>`;
+
         const adminControls = `
             <div class="space-y-2">
                 <div class="flex items-center justify-between text-xs"><span class="text-slate-500">基準價(TWD):</span><input type="number" value="${product.priceTWD}" onchange="updateField('${product.id}', 'priceTWD', Number(this.value))" class="w-24 text-right font-bold border border-amber-400 rounded px-1.5 py-0.5 bg-amber-50"></div>
+                <div class="flex items-center justify-between text-xs"><span class="text-slate-500">庫存數量:</span><input type="number" min="0" value="${stock}" onchange="updateField('${product.id}', 'stock', Number(this.value))" class="w-24 text-right font-bold border border-amber-400 rounded px-1.5 py-0.5 bg-amber-50"></div>
                 <div class="flex items-center justify-between text-xs"><span class="text-slate-500">狀態:</span><select onchange="updateField('${product.id}', 'status', this.value)" class="border border-amber-400 rounded px-1 py-0.5 bg-amber-50"><option value="On Sale" ${product.status === 'On Sale' ? 'selected' : ''}>On Sale</option><option value="Pre-order" ${product.status === 'Pre-order' ? 'selected' : ''}>Pre-order</option><option value="Low Stock" ${product.status === 'Low Stock' ? 'selected' : ''}>Low Stock</option><option value="Sold Out" ${product.status === 'Sold Out' ? 'selected' : ''}>Sold Out</option></select></div>
                 <button onclick="deleteProduct('${product.id}')" class="w-full mt-2 bg-red-100 hover:bg-red-200 text-red-700 text-xs font-bold py-1.5 rounded-lg transition">刪除商品</button>
             </div>`;
+
         const clientControls = `
             <div class="flex items-baseline justify-between mb-3.5"><span class="text-xs text-slate-400">批發單價</span><span class="text-xl font-extrabold text-slate-900">${currentCurrency.symbol} ${price}</span></div>
-            <button onclick="fillInquiry('${product.name}')" class="w-full bg-slate-900 hover:bg-amber-500 hover:text-slate-950 text-white text-xs font-bold py-2.5 rounded-lg transition shadow-sm">+ 加入詢價清單</button>`;
+            <button ${isOut ? 'disabled' : `onclick="addToCart('${product.id}')"`} class="w-full ${isOut ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-slate-900 hover:bg-amber-500 hover:text-slate-950 text-white'} text-xs font-bold py-2.5 rounded-lg transition shadow-sm">${isOut ? '已售完 (庫存 0)' : '+ 加入購物車'}</button>`;
+
         return `${cardTop}<div class="mt-4 pt-3.5 border-t border-slate-100">${isAdmin ? adminControls : clientControls}</div></div></div>`;
     }).join('');
 
@@ -221,6 +250,7 @@ window.updateImage = async (id, e) => {
     const file = e.target.files.item(0);
     if (file) await updateField(id, 'image', await compressImage(file, 400));
 };
+
 window.addProduct = async (e) => {
     e.preventDefault();
     const btn = document.getElementById('addBtn');
@@ -229,7 +259,15 @@ window.addProduct = async (e) => {
     const f = document.getElementById('newImage').files.item(0);
     if (f) img = await compressImage(f, 400);
     try {
-        await addDoc(productsCol, { name: document.getElementById('newName').value, category: document.getElementById('newCategory').value, priceTWD: Number(document.getElementById('newPrice').value), status: document.getElementById('newStatus').value, image: img, createdAt: serverTimestamp() });
+        await addDoc(productsCol, {
+            name: document.getElementById('newName').value,
+            category: document.getElementById('newCategory').value,
+            priceTWD: Number(document.getElementById('newPrice').value),
+            stock: Number(document.getElementById('newStock').value),
+            status: document.getElementById('newStatus').value,
+            image: img,
+            createdAt: serverTimestamp()
+        });
         e.target.reset();
     } catch (err) { alert("上架失敗：" + err.message); }
     finally { btn.disabled = false; btn.textContent = "+ 雲端上架"; }
@@ -253,30 +291,130 @@ window.addBanner = async (e) => {
 
 window.deleteBanner = async (id) => { if (confirm('確定刪除此則輪播消息？')) await deleteDoc(doc(db, "banners", id)); };
 
+window.savePaymentLink = async (e) => {
+    e.preventDefault();
+    try {
+        await setDoc(settingsDoc, {
+            url: document.getElementById('paymentLinkInput').value.trim(),
+            note: document.getElementById('paymentNoteInput').value.trim()
+        });
+        alert("付款連結設定已儲存！");
+    } catch (err) { alert("儲存失敗：" + err.message); }
+};
+
+window.addToCart = (id) => {
+    const p = products.find(x => x.id === id);
+    if (!p || (p.stock ?? 0) <= 0) return;
+    const exist = cart.find(x => x.id === id);
+    if (exist) {
+        if (exist.qty >= p.stock) return alert(`「${p.name}」目前最高庫存僅剩 ${p.stock} 件！`);
+        exist.qty++;
+    } else {
+        cart.push({ id: p.id, name: p.name, priceTWD: p.priceTWD, qty: 1 });
+    }
+    renderCart();
+};
+
+window.changeCartQty = (id, delta) => {
+    const idx = cart.findIndex(x => x.id === id);
+    if (idx === -1) return;
+    const p = products.find(x => x.id === id);
+    const maxStock = p ? (p.stock ?? 0) : 99;
+    const nextQty = cart[idx].qty + delta;
+    if (nextQty <= 0) cart.splice(idx, 1);
+    else if (nextQty > maxStock) return alert(`庫存不足，最多可購買 ${maxStock} 件`);
+    else cart[idx].qty = nextQty;
+    renderCart();
+};
+
+function renderCart() {
+    const container = document.getElementById('cartItemsContainer');
+    const totalEl = document.getElementById('cartTotalDisplay');
+    const floatBtn = document.getElementById('floatingCartBtn');
+    const badge = document.getElementById('cartCountBadge');
+    const totalQty = cart.reduce((sum, item) => sum + item.qty, 0);
+
+    if (badge) badge.textContent = totalQty;
+    if (floatBtn) floatBtn.classList.toggle('hidden', totalQty === 0);
+
+    if (cart.length === 0) {
+        container.innerHTML = `<div class="text-center py-8 text-slate-400 text-sm bg-slate-900/60 rounded-xl border border-slate-700/80">購物車目前是空的，請在上方商品列表點擊「+ 加入購物車」</div>`;
+        totalEl.textContent = `${currentCurrency.symbol} 0`;
+        return;
+    }
+
+    let totalTWD = 0;
+    container.innerHTML = cart.map(item => {
+        totalTWD += item.priceTWD * item.qty;
+        const unitPrice = (item.priceTWD * currentCurrency.rate).toLocaleString(undefined, { maximumFractionDigits: currentCurrency.code === 'USD' ? 2 : 0 });
+        return `<div class="flex items-center justify-between gap-3 bg-slate-900/80 p-3.5 rounded-xl border border-slate-700">
+            <div class="flex-1 min-w-0">
+                <div class="font-bold text-sm text-white truncate">${item.name}</div>
+                <div class="text-xs text-amber-400 mt-0.5">${currentCurrency.symbol} ${unitPrice} / 件</div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+                <button type="button" onclick="changeCartQty('${item.id}', -1)" class="w-7 h-7 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-bold">-</button>
+                <span class="w-7 text-center text-sm font-bold">${item.qty}</span>
+                <button type="button" onclick="changeCartQty('${item.id}', 1)" class="w-7 h-7 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-bold">+</button>
+            </div>
+        </div>`;
+    }).join('');
+
+    const totalConverted = (totalTWD * currentCurrency.rate).toLocaleString(undefined, { maximumFractionDigits: currentCurrency.code === 'USD' ? 2 : 0 });
+    totalEl.textContent = `${currentCurrency.symbol} ${totalConverted}`;
+}
+
+window.checkPayLink = (e) => {
+    if (!paymentConfig.url) {
+        e.preventDefault();
+        alert("管理員尚未設定線上付款連結，請先點擊左側「確認送出訂單並扣庫存」，或聯繫官方客服！");
+    }
+};
+
+window.submitOrder = async (e) => {
+    e.preventDefault();
+    if (cart.length === 0) return alert("購物車是空的，請先加入商品！");
+    try {
+        for (const item of cart) {
+            const p = products.find(x => x.id === item.id);
+            if (p) {
+                const newStock = Math.max(0, (p.stock ?? 0) - item.qty);
+                await updateDoc(doc(db, "products", p.id), {
+                    stock: newStock,
+                    status: newStock === 0 ? "Sold Out" : p.status
+                });
+            }
+        }
+        await addDoc(collection(db, "orders"), {
+            buyerName: document.getElementById('buyerName').value,
+            buyerPhone: document.getElementById('buyerPhone').value,
+            buyerAddress: document.getElementById('buyerAddress').value,
+            items: cart,
+            createdAt: serverTimestamp()
+        });
+        alert("訂單已成功送出並完成庫存保留！接著可點擊綠色「前往線上付款」按鈕完成結帳。");
+        cart = []; renderCart(); e.target.reset();
+        if (paymentConfig.url) window.open(paymentConfig.url, '_blank');
+    } catch (err) { alert("送出訂單失敗：" + err.message); }
+};
+
 window.seedDefaultData = async () => {
     if (!confirm('確定匯入 3 筆寶可夢卡牌範例？')) return;
     const samples = [
-        { name: "日版 寶可夢 151 強化擴充包 (原箱12盒)", category: "原箱/盒裝", priceTWD: 38500, status: "On Sale", image: "logo.png", createdAt: serverTimestamp() },
-        { name: "繁中版 奇幻光輝 擴充包 (單盒)", category: "原箱/盒裝", priceTWD: 1850, status: "Low Stock", image: "logo.png", createdAt: serverTimestamp() },
-        { name: "PSA 10 噴火龍 ex SAR 特別藝術版", category: "鑑定卡", priceTWD: 12800, status: "Pre-order", image: "logo.png", createdAt: serverTimestamp() }
+        { name: "日版 寶可夢 151 強化擴充包 (原箱12盒)", category: "原箱/盒裝", priceTWD: 38500, stock: 5, status: "On Sale", image: "logo.png", createdAt: serverTimestamp() },
+        { name: "繁中版 奇幻光輝 擴充包 (單盒)", category: "原箱/盒裝", priceTWD: 1850, stock: 20, status: "Low Stock", image: "logo.png", createdAt: serverTimestamp() },
+        { name: "PSA 10 噴火龍 ex SAR 特別藝術版", category: "鑑定卡", priceTWD: 12800, stock: 1, status: "Pre-order", image: "logo.png", createdAt: serverTimestamp() }
     ];
     for (const item of samples) await addDoc(productsCol, item);
 };
 
-window.fillInquiry = (name) => {
-    if (!inquiryList.includes(name)) inquiryList.push(name);
-    document.getElementById('inquiryTarget').value = inquiryList.join(', ');
-    document.getElementById('floatingCartBtn').classList.remove('hidden');
-    document.getElementById('inquiryCountBadge').textContent = inquiryList.length;
-};
-
-window.submitInquiry = (e) => { e.preventDefault(); alert('詢價單已送出！PiJie TCG 業務將盡快聯繫您。'); e.target.reset(); inquiryList = []; document.getElementById('floatingCartBtn').classList.add('hidden'); };
 window.openLightbox = (src, title) => {
     document.getElementById('lightboxImg').src = src;
     document.getElementById('lightboxTitle').textContent = title;
     document.getElementById('imageLightbox').classList.remove('hidden');
 };
 window.closeLightbox = () => document.getElementById('imageLightbox').classList.add('hidden');
+
 
 
 
