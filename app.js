@@ -64,7 +64,6 @@ window.submitLogin = async (e) => {
         e.target.reset();
     } catch (err) { alert("登入失敗：" + err.message); }
 };
-
 function renderBanners() {
     const container = document.getElementById('bannerContainer');
     const dots = document.getElementById('bannerDots');
@@ -77,15 +76,38 @@ function renderBanners() {
     const nextIdx = (currentBannerIdx + 1) % len;
 
     const buildCard = (item, role, clickFn) => `
-        <div ${clickFn ? `onclick="${clickFn}"` : ''} class="carousel-card ${role} bg-slate-900">
-            <img src="${item.image}" alt="${item.title}">
-            <div class="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/30 to-transparent"></div>
-            <div class="absolute bottom-5 left-6 right-6 text-white">
-                <span class="inline-block bg-amber-500 text-slate-950 text-[11px] font-extrabold px-2.5 py-0.5 rounded mb-1.5">${item.tag}</span>
-                <h2 class="text-lg md:text-2xl font-extrabold leading-snug">${item.title}</h2>
-                <p class="text-slate-300 text-xs md:text-sm line-clamp-1 mt-0.5">${item.desc}</p>
+        <div ${clickFn ? `onclick="${clickFn}"` : ''} class="carousel-card ${role}">
+            <img src="${item.image}" class="carousel-bg-blur">
+            <img src="${item.image}" alt="${item.title}" class="carousel-main-img">
+            <div class="absolute inset-0 z-10 bg-gradient-to-t from-slate-950/90 via-transparent to-transparent"></div>
+            <div class="absolute bottom-4 left-5 right-5 z-20 text-white">
+                <span class="inline-block bg-amber-500 text-slate-950 text-[11px] font-extrabold px-2.5 py-0.5 rounded mb-1">${item.tag}</span>
+                <h2 class="text-lg md:text-xl font-extrabold leading-snug">${item.title}</h2>
+                <p class="text-slate-300 text-xs line-clamp-1">${item.desc}</p>
             </div>
         </div>`;
+    container.innerHTML = `<div class="carousel-track">
+        ${len > 1 ? buildCard(list[prevIdx], 'side', 'prevBanner()') : ''}
+        ${buildCard(list[currentBannerIdx], 'center', '')}
+        ${len > 1 ? buildCard(list[nextIdx], 'side', 'nextBanner()') : ''}
+    </div>`;
+
+    dots.innerHTML = list.map((_, i) => `<button onclick="goBanner(${i})" class="h-2 rounded-full transition ${i === currentBannerIdx ? 'bg-amber-400 w-6' : 'bg-white/60 w-2'}"></button>`).join('');
+    clearInterval(bannerTimer);
+    if (len > 1) bannerTimer = setInterval(() => window.nextBanner(), 5000);
+}
+
+    container.innerHTML = `<div class="carousel-track">
+        ${len > 1 ? buildCard(list[prevIdx], 'side', 'prevBanner()') : ''}
+        ${buildCard(list[currentBannerIdx], 'center', '')}
+        ${len > 1 ? buildCard(list[nextIdx], 'side', 'nextBanner()') : ''}
+    </div>`;
+
+    dots.innerHTML = list.map((_, i) => `<button onclick="goBanner(${i})" class="h-2 rounded-full transition ${i === currentBannerIdx ? 'bg-amber-400 w-6' : 'bg-white/60 w-2'}"></button>`).join('');
+    clearInterval(bannerTimer);
+    if (len > 1) bannerTimer = setInterval(() => window.nextBanner(), 5000);
+}
+
 
     container.innerHTML = `<div class="carousel-track">
         ${len > 1 ? buildCard(list[prevIdx], 'side', 'prevBanner()') : ''}
