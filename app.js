@@ -28,6 +28,8 @@ let currentCategory = 'All';
 let isAdmin = false;
 let currentCurrency = { code: 'TWD', rate: 1, symbol: 'NT$' };
 let cart = [];
+const ordersCol = collection(db, "orders");
+let orders = [];
 let paymentConfig = { url: "", note: "確認商品數量與總金額後，點擊前往付款並填寫收件資訊。" };
 let currentPage = 1;
 const itemsPerPage = 12;
@@ -59,7 +61,6 @@ onSnapshot(query(bannersCol, orderBy("createdAt", "desc")), (snap) => {
     renderBanners();
     renderAdminBanners();
 });
-
 onSnapshot(settingsDoc, (snap) => {
     if (snap.exists()) {
         paymentConfig = snap.data();
@@ -73,7 +74,10 @@ onSnapshot(settingsDoc, (snap) => {
         if (payNote && paymentConfig.note) payNote.textContent = paymentConfig.note;
     }
 });
-
+onSnapshot(query(ordersCol, orderBy("createdAt", "desc")), (snap) => {
+    orders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderAdminOrders();
+});
 window.handleAuthClick = () => isAdmin ? signOut(auth) : document.getElementById('loginModal').classList.remove('hidden');
 window.closeLoginModal = () => document.getElementById('loginModal').classList.add('hidden');
 window.submitLogin = async (e) => {
@@ -414,6 +418,55 @@ window.openLightbox = (src, title) => {
     document.getElementById('imageLightbox').classList.remove('hidden');
 };
 window.closeLightbox = () => document.getElementById('imageLightbox').classList.add('hidden');
+function renderAdminOrders() {
+    const listEl = document.getElementById('adminOrderList');
+    const badge = document.getElementById('orderCountBadge');
+    if (!listEl) return;
+    if (badge) badge.textContent = `${orders.length} 筆訂單`;
+
+    if (orders.length === 0) {
+        listEl.innerHTML = `<div class="text-center py-6 text-slate-400 text-sm bg-white rounded-lg border border-purple-200">目前尚無客戶訂單</div>`;
+        return;
+    }
+
+    listEl.innerHTML = orders.map(o => {
+        const timeStr = o.createdAt?.toDate ? o.createdAt.toDate().toLocaleString('zh-TW') : '剛剛';
+        const totalTWD = (o.items || []).reduce((sum, i) => sum + (i.priceTWD * i.qty), 0);
+        const itemsHtml = (o.items || []).map(i => `<span class="inline-block bg-slate-100 text-slate-800 text-xs px-2 py-0.5 rounded mr-1 mb-1">${i.name} × <b>${i.qty}</b></span>`).join('');
+        const isDone = o.orderStatus === '已出貨';
+
+        return `<div class="bg-white p-4 rounded-xl border ${isDone ? 'border-slate-200 opacity-75' : 'border-purple-300'} flex flex-col md:flex-row justify-between gap-3">
+            <div class="space-y-1 flex-1">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="text-xs font-extrabold px-2 py-0.5 rounded ${isDone ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">${o.orderStatus || '待處理 / 核帳中'}</span>
+                    <span class="font-bold text-slate-900 text-sm">${o.buyerName}</span>
+                    <span class="text-xs text-slate-500">📞 ${o.buyerPhone}</span>
+                    <span class="text-[11px] text-slate-400">${timeStr}</span>
+                </div>
+                <div class="text-xs text-slate-600">📍 收件地址：${o.buyerAddress}</div>
+                <div class="pt-1">${itemsHtml}</div>
+            </div>
+            <div class="flex md:flex-col justify-between items-end gap-2 shrink-0 border-t md:border-t-0 pt-2 md:pt-0 border-slate-100">
+                <div class="text-base font-extrabold text-purple-900">NT$ ${totalTWD.toLocaleString()}</div>
+                <div class="flex gap-1.5">
+                    <button onclick="toggleOrderStatus('${o.id}', '${isDone ? '待處理 / 核帳中' : '已出貨'}')" class="text-xs px-2.5 py-1 rounded font-bold ${isDone ? 'bg-slate-200 text-slate-700' : 'bg-emerald-600 text-white hover:bg-emerald-500'}">${isDone ? '改回待處理' : '✓ 標記已出貨'}</button>
+                    <button onclick="deleteOrder('${o.id}')" class="text-xs bg-red-100 hover:bg-red-200 text-red-700 px-2.5 py-1 rounded font-bold">刪除</button>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+window.toggleOrderStatus = async (id, nextStatus) => {
+    try { await updateDoc(doc(db, "orders", id), { orderStatus: nextStatus }); }
+    catch (e) { alert("狀態更新失敗：" + e.message); }
+};
+
+window.deleteOrder = async (id) => {
+    if (confirm("確定刪除此筆客戶訂單紀錄？（注意：刪除訂單不會自動加回商品庫存）")) {
+        await deleteDoc(doc(db, "orders", id));
+    }
+};
 
 
 
