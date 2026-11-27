@@ -112,23 +112,56 @@ header select option { background-color: #0f172a; color: #ffffff; }
 #loginModal { background-color: rgba(2, 6, 23, 0.75); display: flex; align-items: center; justify-content: center; }
 #loginModal button[type="submit"] { background-color: #0f172a !important; color: #ffffff !important; }
 #loginModal button[type="button"] { background-color: #f1f5f9 !important; color: #334155 !important; }
-/* 1. 購物網站質感輪播區：限制最大寬度置中，不滿版拉扯變形 */
+/* 購物網站 3 欄式輪播容器（中間主圖 + 左右半透明預覽） */
 section.h-\[360px\] {
-    max-width: 1280px;
-    margin: 1.5rem auto 2.5rem auto;
-    border-radius: 16px;
-    height: 360px !important;
-    background: radial-gradient(circle at center, #1e293b 0%, #090d16 100%);
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+    background: #f1f5f9 !important;
+    height: 320px !important;
+    padding: 1.25rem 0;
+}
+.carousel-track {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.25rem;
+    height: 100%;
+    overflow: hidden;
+}
+.carousel-card {
+    position: relative;
+    height: 100%;
+    border-radius: 14px;
+    overflow: hidden;
+    flex-shrink: 0;
+    transition: all 0.4s ease;
+}
+.carousel-card.center {
+    width: 90%;
+    max-width: 760px;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.22);
+    z-index: 10;
+}
+.carousel-card.side {
+    width: 460px;
+    opacity: 0.45;
+    filter: brightness(0.8);
+    cursor: pointer;
+    display: none;
+}
+@media (min-width: 1024px) { .carousel-card.side { display: block; } }
+.carousel-card img { width: 100%; height: 100%; object-fit: cover; }
+
+/* 圓形半透明左右箭頭（對齊中間主圖兩側邊緣） */
+section.h-\[360px\] > button {
+    background: rgba(15, 23, 42, 0.65) !important;
+    color: #fff !important;
+    width: 40px; height: 40px;
+    border-radius: 9999px;
+}
+@media (min-width: 1024px) {
+    section.h-\[360px\] > button:first-of-type { left: calc(50% - 400px); }
+    section.h-\[360px\] > button:last-of-type { right: calc(50% - 400px); }
 }
 
-/* 2. 輪播照片完整等比例呈現（不裁切、不拉長失真） */
-#bannerContainer img {
-    object-fit: contain !important;
-    object-position: right center;
-    opacity: 0.92 !important;
-    padding: 1rem 3.5rem 1rem 1rem;
-}
 
 /* 3. 修復「最新消息」黃色小標籤被拉長成一條的問題 */
 .w-fit { width: fit-content !important; }
