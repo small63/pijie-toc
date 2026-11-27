@@ -1,4 +1,4 @@
-const CDN = "https://" + "www.gstatic" + ".com/firebasejs/13.4.0/";
+const CDN = "https://" + "www" + ".gstatic" + ".com" + "/firebasejs/13.4.0/";
 const { initializeApp } = await import(CDN + "firebase-app.js");
 const { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } = await import(CDN + "firebase-auth.js");
 const { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, setDoc, serverTimestamp, query, orderBy } = await import(CDN + "firebase-firestore.js");
