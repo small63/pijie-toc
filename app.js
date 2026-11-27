@@ -67,7 +67,7 @@ window.submitLogin = async (e) => {
 function renderBanners() {
     const container = document.getElementById('bannerContainer');
     const dots = document.getElementById('bannerDots');
-    const fallback = { tag: "PiJie Toc 2026", title: "寶可夢卡牌原箱與單卡批發", desc: "日版、繁中版、美版即時報價", image: "logo.png" };
+    const fallback = { tag: "PiJie TCG 2026", title: "寶可夢卡牌原箱與單卡批發", desc: "日版、繁中版、美版即時報價", image: "logo.png" };
     const list = banners.length > 0 ? banners : [fallback];
     const len = list.length;
     if (currentBannerIdx >= len) currentBannerIdx = 0;
@@ -86,6 +86,7 @@ function renderBanners() {
                 <p class="text-slate-300 text-xs line-clamp-1">${item.desc}</p>
             </div>
         </div>`;
+
     container.innerHTML = `<div class="carousel-track">
         ${len > 1 ? buildCard(list[prevIdx], 'side', 'prevBanner()') : ''}
         ${buildCard(list[currentBannerIdx], 'center', '')}
@@ -96,6 +97,7 @@ function renderBanners() {
     clearInterval(bannerTimer);
     if (len > 1) bannerTimer = setInterval(() => window.nextBanner(), 5000);
 }
+
 
     container.innerHTML = `<div class="carousel-track">
         ${len > 1 ? buildCard(list[prevIdx], 'side', 'prevBanner()') : ''}
@@ -275,7 +277,7 @@ window.fillInquiry = (name) => {
     document.getElementById('inquiryCountBadge').textContent = inquiryList.length;
 };
 
-window.submitInquiry = (e) => { e.preventDefault(); alert('詢價單已送出！PiJie Toc 業務將盡快聯繫您。'); e.target.reset(); inquiryList = []; document.getElementById('floatingCartBtn').classList.add('hidden'); };
+window.submitInquiry = (e) => { e.preventDefault(); alert('詢價單已送出！PiJie TCG 業務將盡快聯繫您。'); e.target.reset(); inquiryList = []; document.getElementById('floatingCartBtn').classList.add('hidden'); };
 
 
 
