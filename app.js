@@ -97,32 +97,6 @@ function renderBanners() {
     clearInterval(bannerTimer);
     if (len > 1) bannerTimer = setInterval(() => window.nextBanner(), 5000);
 }
-
-
-    container.innerHTML = `<div class="carousel-track">
-        ${len > 1 ? buildCard(list[prevIdx], 'side', 'prevBanner()') : ''}
-        ${buildCard(list[currentBannerIdx], 'center', '')}
-        ${len > 1 ? buildCard(list[nextIdx], 'side', 'nextBanner()') : ''}
-    </div>`;
-
-    dots.innerHTML = list.map((_, i) => `<button onclick="goBanner(${i})" class="h-2 rounded-full transition ${i === currentBannerIdx ? 'bg-amber-400 w-6' : 'bg-white/60 w-2'}"></button>`).join('');
-    clearInterval(bannerTimer);
-    if (len > 1) bannerTimer = setInterval(() => window.nextBanner(), 5000);
-}
-
-
-    container.innerHTML = `<div class="carousel-track">
-        ${len > 1 ? buildCard(list[prevIdx], 'side', 'prevBanner()') : ''}
-        ${buildCard(list[currentBannerIdx], 'center', '')}
-        ${len > 1 ? buildCard(list[nextIdx], 'side', 'nextBanner()') : ''}
-    </div>`;
-
-    dots.innerHTML = list.map((_, i) => `<button onclick="goBanner(${i})" class="h-2 rounded-full transition ${i === currentBannerIdx ? 'bg-amber-400 w-6' : 'bg-white/60 w-2'}"></button>`).join('');
-    clearInterval(bannerTimer);
-    if (len > 1) bannerTimer = setInterval(() => window.nextBanner(), 5000);
-}
-
-
 window.nextBanner = () => { const len = banners.length || 1; currentBannerIdx = (currentBannerIdx + 1) % len; renderBanners(); };
 window.prevBanner = () => { const len = banners.length || 1; currentBannerIdx = (currentBannerIdx - 1 + len) % len; renderBanners(); };
 window.goBanner = (i) => { currentBannerIdx = i; renderBanners(); };
